@@ -1,6 +1,6 @@
 # Bird Buddy Skill for OpenClaw
 
-Query your [Bird Buddy](https://live.birdbuddy.com) smart bird feeder from OpenClaw.
+Query your [Bird Buddy](https://mybirdbuddy.com) smart bird feeder from OpenClaw.
 
 ## Features
 - Check feeder status (battery, food level, signal)
