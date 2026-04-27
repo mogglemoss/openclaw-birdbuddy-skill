@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 from birdbuddy.client import BirdBuddy
+from birdbuddy import queries
 
 # Load .env from same directory as this script
 env_file = Path(__file__).parent / ".env"
@@ -29,7 +30,26 @@ if not BB_EMAIL or not BB_PASSWORD:
 
 bb = BirdBuddy(BB_EMAIL, BB_PASSWORD)
 
+async def ensure_auth():
+    try:
+        await bb._check_auth()
+    except KeyError as e:
+        try:
+            variables = {
+                "emailSignInInput": {
+                    "email": BB_EMAIL,
+                    "password": BB_PASSWORD,
+                }
+            }
+            data = await bb._make_request(query=queries.auth.SIGN_IN, variables=variables, auth=False)
+            bail(f"Bird Buddy auth response missing expected field: {e}; raw keys={list(data.keys())}; raw={json.dumps(data)[:1200]}")
+        except Exception as inner:
+            bail(f"Bird Buddy auth response missing expected field: {e}; raw auth probe failed: {inner}")
+    except Exception as e:
+        bail(f"Bird Buddy auth failed: {e}")
+
 async def cmd_status():
+    await ensure_auth()
     await bb.refresh()
     result = []
     for fid, feeder in bb.feeders.items():
@@ -52,6 +72,7 @@ async def cmd_status():
     print(json.dumps(result, indent=2))
 
 async def cmd_feed(hours=24):
+    await ensure_auth()
     since = datetime.now(timezone.utc) - timedelta(hours=int(hours))
     feed = await bb.refresh_feed(since=since)
     postcards = []
@@ -65,6 +86,7 @@ async def cmd_feed(hours=24):
     print(json.dumps(postcards, indent=2))
 
 async def cmd_sighting(postcard_id):
+    await ensure_auth()
     sighting = await bb.sighting_from_postcard(postcard_id)
     report = sighting.report
     birds = []
@@ -80,6 +102,7 @@ async def cmd_sighting(postcard_id):
     print(json.dumps({"birds": birds, "media": medias}, indent=2))
 
 async def cmd_recent(hours=24, limit=5):
+    await ensure_auth()
     since = datetime.now(timezone.utc) - timedelta(hours=int(hours))
     feed = await bb.refresh_feed(since=since)
     count = 0
